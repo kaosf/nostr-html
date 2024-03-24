@@ -13,7 +13,7 @@
   <div>
     <%- id = event["id"] -%>
     <p><a href="<%= id %>.html"><%= id[0...7] %>...</a> <%= Time.at(event["created_at"]) %></p>
-    <div><%= content %></div>
+    <div style="white-space: pre-wrap;"><%= content %></div>
   </div>
   <hr>
 <%- end -%>

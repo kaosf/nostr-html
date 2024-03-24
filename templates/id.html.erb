@@ -15,9 +15,7 @@
 <p>created_at: <%= Time.at(event["created_at"]) %></p>
 <p>created_at (unix time): <%= event["created_at"] %></p>
 <p>content:</p>
-<div>
-  <%= content %>
-</div>
+<div style="white-space: pre-wrap;"><%= content %></div>
 <p><a href="<%= id %>.json">JSON</a></p>
 </body>
 </html>

@@ -96,8 +96,7 @@ loop do
   all_ym = all_ym.to_a.sort
 
   LOGGER.info "Output index.html"
-  output_file = "data/www/index.html"
-  File.open(output_file, "w") do |f|
+  File.open("data/www/index.html", "w") do |f|
     f.print ErbHelper.new("templates/index.html.erb").run(binding)
   end
 
