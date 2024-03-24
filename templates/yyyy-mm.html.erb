@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Nostr <%= ym %> - kaosfield</title>
+  <link rel="stylesheet" href="/stylesheets/style.css" />
+</head>
+<body>
+<a href="/nostr/">index</a>
+<%- events.each do |event| -%>
+  <%- content = content_converter.run(event["content"]) -%>
+  <div>
+    <%- id = event["id"] -%>
+    <p><a href="<%= id %>.html"><%= id[0...7] %>...</a> <%= Time.at(event["created_at"]) %></p>
+    <div><%= content %></div>
+  </div>
+  <hr>
+<%- end -%>
+</body>
+</html>

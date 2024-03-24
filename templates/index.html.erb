@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Nostr - kaosfield</title>
+  <link rel="stylesheet" href="/stylesheets/style.css" />
+</head>
+<body>
+<h2>Nostr kind:1 logs</h2>
+<%- all_ym.each do |ym| -%>
+  <p><a href="<%= ym %>.html"><%= ym %></a></p>
+  <%- # special ym process; they are empty. -%>
+  <%- if ym == "2023-03" -%>
+  <p>2023-04</p>
+  <p>2023-05</p>
+  <p>2023-06</p>
+  <%- end -%>
+<%- end -%>
+</body>
+</html>

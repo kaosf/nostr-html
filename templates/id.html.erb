@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Nostr <%= id %> - kaosfield</title>
+  <link rel="stylesheet" href="/stylesheets/style.css" />
+</head>
+<body>
+<a href="/nostr">index</a>
+<%- id_bech32 = Bech32::Nostr::BareEntity.new("note", id).encode -%>
+<p>id: <%= id %></p>
+<p>id (bech32): <%= id_bech32 %></p>
+<p>sig: <%= event["sig"] %></p>
+<p>created_at: <%= Time.at(event["created_at"]) %></p>
+<p>created_at (unix time): <%= event["created_at"] %></p>
+<p>content:</p>
+<div>
+  <%= content %>
+</div>
+<p><a href="<%= id %>.json">JSON</a></p>
+</body>
+</html>

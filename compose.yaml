@@ -1,0 +1,9 @@
+services:
+  nostr-html:
+    image: your-docker-registry/nostr-html:1.0.0
+    environment:
+      DATABASE_URL: postgres://user:pass@host:5432/db
+      SLEEP_SECONDS: 900
+    volumes:
+      - /path/to/data/events:/data/events
+      - /path/to/www/document-root/nostr:/data/www
