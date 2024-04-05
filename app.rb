@@ -11,12 +11,6 @@ end
 require "logger"
 LOGGER = Logger.new $stdout
 
-if ENV["TZ"] != "Asia/Tokyo"
-  LOGGER.info "ENV[\"TZ\"] is not Asia/Tokyo"
-  sleep 30
-  exit 1
-end
-
 SLEEP_SECONDS = ENV.fetch("SLEEP_SECONDS") { "900" }.to_i
 
 LOGGER.info "Start"
@@ -26,6 +20,8 @@ I18n.enforce_available_locales = false
 require "uri"
 ActiveRecord::Base.establish_connection ENV["DATABASE_URL"]
 # This snippet ref. https://gist.github.com/kaosf/f4451b36e55012e6b7d1781e6a88df6a
+
+ActiveRecord::Base.logger = Logger.new($stdout) if IS_DEVELOPMENT && (ENV.fetch("OUTPUT_SQL") { "" } == "1")
 
 LOGGER.info "DB setup done"
 
