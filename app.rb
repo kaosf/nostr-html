@@ -24,6 +24,7 @@ require "action_view"
 require "bech32"
 require "erb"
 require "open-uri"
+require "rmagick"
 
 require "active_record"
 I18n.enforce_available_locales = false
@@ -68,18 +69,62 @@ class Url < ApplicationRecord
   validates :body, uniqueness: { scope: :nostr_event_id }
 end
 
+def ext_of_mime_type(mime_type)
+  case mime_type
+  when "image/jpeg"
+    "jpg"
+  when "image/png"
+    "png"
+  when "image/webp"
+    "webp"
+  when "image/gif"
+    "gif"
+  else
+    "image"
+  end
+end
+
 class Image < ApplicationRecord
   belongs_to :url
+
+  def self.filename(sha256:, mime_type:)
+    "#{sha256}.#{ext_of_mime_type(mime_type)}"
+  end
+
+  def filename
+    self.class.filename(sha256:, mime_type: mime_t)
+  end
+
+  def self.filename_thumb(sha256:, mime_type:)
+    "#{sha256}_thumb.#{ext_of_mime_type(mime_type)}"
+  end
+
+  def filename_thumb
+    self.class.filename_thumb(sha256:, mime_type: mime_t)
+  end
 end
 
 class ContentConverter
   include ActionView::Helpers::SanitizeHelper
 
-  def run(content)
+  def run(nostr_event_id:, content:)
     content = CGI.escapeHTML content
-    content.gsub!(%r{(?:https?|ftp)://\S+}, '<a href="\0" target="_blank">\0</a>')
+    urls = Url.where(nostr_event_id:)
+    unless urls.empty?
+      urls.each do |url|
+        image = Image.find_by(url_id: url.id)
+        if image
+          content.sub!(
+            url.body,
+            "<a href=\"img/#{image.filename}\"><img src=\"img/#{image.filename_thumb}\" height=\"200\"></a>"
+          )
+        else
+          content.sub!(url.body, "<a href=\"#{url.body}\" target=\"_blank\">#{url.body}</a>")
+        end
+      end
+    end
     content.gsub!(/\n/, "<br>")
-    sanitize(content, tags: %w[a br])
+    sanitize(content, tags: %w[a br img])
   end
 end
 
@@ -95,13 +140,21 @@ class ErbHelper
   end
 end
 
-def download_and_get_checksum(url)
+def download_and_get_metadata(url)
   LOGGER.info "Sleep 1 second before download; URL: #{url}"
   sleep 1
   File.open("data/img/tmp", "wb") { |fo| fo.write URI.parse(url).read }
   sha256 = Digest::SHA256.file("data/img/tmp").to_s
-  FileUtils.mv("data/img/tmp", "data/img/#{sha256}")
-  sha256
+  mime_type = Magick::Image.ping("data/img/tmp").first.mime_type
+  FileUtils.mv("data/img/tmp", "data/img/#{Image.filename(sha256:, mime_type:)}")
+  unless File.exist?("data/img/#{Image.filename_thumb(sha256:, mime_type:)}")
+    Magick::Image
+      .read("data/img/#{Image.filename(sha256:, mime_type:)}")
+      .first
+      .resize_to_fit(0, 200)
+      .write("data/img/#{Image.filename_thumb(sha256:, mime_type:)}")
+  end
+  { mime_type:, sha256: }
 end
 
 loop do
@@ -131,15 +184,19 @@ loop do
       image = Image.find_by(url_id: url.id)
 
       if image.nil?
-        sha256 = download_and_get_checksum(url.body)
-        Image.create(url_id: url.id, sha256:)
+        metadata = download_and_get_metadata(url.body)
+        mime_type = metadata[:mime_type]
+        sha256 = metadata[:sha256]
+        Image.create(url_id: url.id, sha256:, mime_t: mime_type)
       else
         sha256 = image.sha256
-        unless File.exist?("data/img/#{sha256}")
-          sha256_real = download_and_get_checksum(url.body)
+        unless File.exist?("data/img/#{image.filename}")
+          metadata = download_and_get_metadata(url.body)
+          mime_type_real = metadata[:mime_type]
+          sha256_real = metadata[:sha256]
           if sha256 != sha256_real
             LOGGER.info "Downloaded file's SHA256: #{sha256_real} != recorded SHA256: #{sha256}; Update to the new one."
-            url_to_checksum.update(sha256: sha256_real)
+            url_to_checksum.update(mime_t: mime_type_real, sha256: sha256_real)
           end
         end
       end
@@ -191,7 +248,7 @@ loop do
     end
 
     event = JSON.parse(event)
-    content = content_converter.run(event["content"])
+    content = content_converter.run(nostr_event_id: id, content: event["content"])
     File.open("data/www/#{id}.html", "w") do |f|
       f.print erb_helper.run(binding)
     end

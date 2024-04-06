@@ -22,6 +22,7 @@ CREATE INDEX IF NOT EXISTS index_urls_on_nostr_event_id ON urls(nostr_event_id);
 CREATE TABLE IF NOT EXISTS images (
   id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
   url_id INTEGER NOT NULL,
+  mime_t TEXT NOT NULL,
   sha256 TEXT NOT NULL
 ) STRICT;
 

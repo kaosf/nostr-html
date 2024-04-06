@@ -9,7 +9,7 @@
 <body>
 <a href="/nostr/">index</a>
 <%- events.each do |event| -%>
-  <%- content = content_converter.run(event["content"]) -%>
+  <%- content = content_converter.run(nostr_event_id: event["id"], content: event["content"]) -%>
   <div>
     <%- id = event["id"] -%>
     <p><a href="<%= id %>.html"><%= id[0...7] %>...</a> <%= Time.at(event["created_at"]) %></p>
