@@ -11,6 +11,8 @@ end
 require "logger"
 LOGGER = Logger.new $stdout
 
+LOGGER.level = ENV.fetch("LOG_LEVEL") { "info" }.to_sym
+
 SLEEP_SECONDS = ENV.fetch("SLEEP_SECONDS") { "900" }.to_i
 
 LOGGER.info "Start"
@@ -21,8 +23,6 @@ require "uri"
 # This snippet ref. https://gist.github.com/kaosf/f4451b36e55012e6b7d1781e6a88df6a
 
 ActiveRecord::Base.logger = Logger.new($stdout) if IS_DEVELOPMENT && (ENV.fetch("OUTPUT_SQL") { "" } == "1")
-
-LOGGER.info "DB setup done"
 
 module Source
   class NostrEvent < ActiveRecord::Base
@@ -40,7 +40,24 @@ class ApplicationRecord < ActiveRecord::Base
   establish_connection(adapter: "sqlite3", database: "data/database.sqlite3")
 end
 
+File.open("setup.sql").read.split(";").map(&:strip).reject(&:empty?).each do |query|
+  ApplicationRecord.connection.execute query
+end
+
+LOGGER.info "DB setup done"
+
 class NostrEvent < ApplicationRecord
+  has_many :urls
+end
+
+class Url < ApplicationRecord
+  belongs_to :nostr_event
+  has_many :images
+  validates :body, uniqueness: { scope: :nostr_event_id }
+end
+
+class Image < ApplicationRecord
+  belongs_to :url
 end
 
 require "fileutils"
@@ -49,6 +66,7 @@ require "cgi"
 require "action_view"
 require "bech32"
 require "erb"
+require "open-uri"
 
 class ContentConverter
   include ActionView::Helpers::SanitizeHelper
@@ -73,6 +91,18 @@ class ErbHelper
   end
 end
 
+def download_and_get_checksum(url)
+  LOGGER.info "Sleep 1 second before download; URL: #{url}"
+  sleep 1
+  File.open("data/img/tmp", "wb") { |fo| fo.write URI.parse(url).read }
+  sha256 = Digest::SHA256.file("data/img/tmp").to_s
+  FileUtils.mv("data/img/tmp", "data/img/#{sha256}")
+  sha256
+end
+
+FileUtils.mkdir_p "data/img"
+LOGGER.info "Create data/img done"
+
 loop do
   ids = Source::NostrEvent.select(:id).where(kind: 1).pluck(:id)
 
@@ -86,6 +116,34 @@ loop do
     end
   end
   LOGGER.info "Fetch NostrEvent OK"
+
+  NostrEvent.order(created_at: :asc).each do |ne| # nostr event
+    image_urls = []
+    JSON.parse(ne.body)["content"].scan(%r{(?:https?)://\S+}) do |match|
+      url = Url.find_or_create_by nostr_event_id: ne.id, body: match
+
+      image_urls << url if match.include?("nostr.build")
+    end
+
+    image_urls.each do |url|
+      LOGGER.debug url
+      image = Image.find_by(url_id: url.id)
+
+      if image.nil?
+        sha256 = download_and_get_checksum(url.body)
+        Image.create(url_id: url.id, sha256:)
+      else
+        sha256 = image.sha256
+        unless File.exist?("data/img/#{sha256}")
+          sha256_real = download_and_get_checksum(url.body)
+          if sha256 != sha256_real
+            LOGGER.info "Downloaded file's SHA256: #{sha256_real} != recorded SHA256: #{sha256}; Update to the new one."
+            url_to_checksum.update(sha256: sha256_real)
+          end
+        end
+      end
+    end
+  end
 
   ym_to_ids_dictionary = {}
   all_ym = Set.new
