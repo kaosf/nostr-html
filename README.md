@@ -23,11 +23,12 @@ DATABASE_URL=postgres://user:pass@host:5432/db
 EOF
 chmod 600 .env
 
-mkdir -p data/www
+mkdir -p data/{db,img,www}
 bundle
 IS_DEVELOPMENT=1 TZ=Asia/Tokyo SLEEP_SECONDS=5 bundle exec ruby app.rb
 
 cp -r data/www /path/to/www/document-root/
+cp -r data/img /path/to/www/document-root/img
 ```
 
 ## License

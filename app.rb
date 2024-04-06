@@ -17,6 +17,14 @@ SLEEP_SECONDS = ENV.fetch("SLEEP_SECONDS") { "900" }.to_i
 
 LOGGER.info "Start"
 
+require "fileutils"
+require "json"
+require "cgi"
+require "action_view"
+require "bech32"
+require "erb"
+require "open-uri"
+
 require "active_record"
 I18n.enforce_available_locales = false
 require "uri"
@@ -35,9 +43,13 @@ module Source
   end
 end
 
+FileUtils.mkdir_p "data/db"
+FileUtils.mkdir_p "data/img"
+FileUtils.mkdir_p "data/www"
+
 class ApplicationRecord < ActiveRecord::Base
   self.abstract_class = true
-  establish_connection(adapter: "sqlite3", database: "data/database.sqlite3")
+  establish_connection(adapter: "sqlite3", database: "data/db/database.sqlite3")
 end
 
 File.open("setup.sql").read.split(";").map(&:strip).reject(&:empty?).each do |query|
@@ -59,14 +71,6 @@ end
 class Image < ApplicationRecord
   belongs_to :url
 end
-
-require "fileutils"
-require "json"
-require "cgi"
-require "action_view"
-require "bech32"
-require "erb"
-require "open-uri"
 
 class ContentConverter
   include ActionView::Helpers::SanitizeHelper
@@ -99,9 +103,6 @@ def download_and_get_checksum(url)
   FileUtils.mv("data/img/tmp", "data/img/#{sha256}")
   sha256
 end
-
-FileUtils.mkdir_p "data/img"
-LOGGER.info "Create data/img done"
 
 loop do
   ids = Source::NostrEvent.select(:id).where(kind: 1).pluck(:id)
