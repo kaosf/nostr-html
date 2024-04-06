@@ -18,18 +18,29 @@ LOGGER.info "Start"
 require "active_record"
 I18n.enforce_available_locales = false
 require "uri"
-ActiveRecord::Base.establish_connection ENV["DATABASE_URL"]
 # This snippet ref. https://gist.github.com/kaosf/f4451b36e55012e6b7d1781e6a88df6a
 
 ActiveRecord::Base.logger = Logger.new($stdout) if IS_DEVELOPMENT && (ENV.fetch("OUTPUT_SQL") { "" } == "1")
 
 LOGGER.info "DB setup done"
 
-class NostrEvent < ActiveRecord::Base
-  validates :id, presence: true, uniqueness: true
-  validates :kind, presence: true
-  validates :created_at, presence: true
-  validates :body, presence: true
+module Source
+  class NostrEvent < ActiveRecord::Base
+    establish_connection ENV["DATABASE_URL"]
+
+    validates :id, presence: true, uniqueness: true
+    validates :kind, presence: true
+    validates :created_at, presence: true
+    validates :body, presence: true
+  end
+end
+
+class ApplicationRecord < ActiveRecord::Base
+  self.abstract_class = true
+  establish_connection(adapter: "sqlite3", database: "data/database.sqlite3")
+end
+
+class NostrEvent < ApplicationRecord
 end
 
 require "fileutils"
@@ -63,28 +74,27 @@ class ErbHelper
 end
 
 loop do
-  ids = NostrEvent.select(:id).where(kind: 1).pluck(:id)
+  ids = Source::NostrEvent.select(:id).where(kind: 1).pluck(:id)
 
   ids.each_slice(1000).with_index do |ids_part, slice_index|
     LOGGER.info "Fetch NostrEvent #{slice_index * 1000}/#{ids.size}"
-    nostr_events = NostrEvent.where(id: ids_part)
-    nostr_events.each do |nostr_event|
-      File.open("data/events/#{nostr_event.id}.json", "w") do |f|
-        f.puts nostr_event.body.to_json
-      end
+    nostr_events = Source::NostrEvent.where(id: ids_part)
+    nostr_events.each do |ne| # nostr event
+      next unless NostrEvent.find_by(id: ne.id).nil?
+
+      NostrEvent.create(id: ne.id, kind: ne.kind, created_at: ne.created_at, body: ne.body.to_json)
     end
   end
   LOGGER.info "Fetch NostrEvent OK"
 
   ym_to_ids_dictionary = {}
   all_ym = Set.new
-  Dir.glob("data/events/*.json") do |filepath|
-    event = JSON.parse(File.open(filepath).read)
-    created_at = Time.at(event["created_at"])
+  NostrEvent.select(:id, :created_at).each do |nostr_event|
+    created_at = Time.at(nostr_event.created_at)
     year = format "%04d", created_at.year
     month = format "%02d", created_at.month
     ym = "#{year}-#{month}"
-    id = event["id"]
+    id = nostr_event.id
     ym_to_ids_dictionary[ym] ||= []
     ym_to_ids_dictionary[ym] << id
     all_ym.add ym
@@ -102,7 +112,7 @@ loop do
     File.open("data/www/#{ym}.html", "w") do |f|
       events = []
       ym_to_ids_dictionary[ym].each do |id|
-        event = JSON.parse(File.open("data/events/#{id}.json").read)
+        event = JSON.parse(NostrEvent.find(id).body)
         events << event
       end
       events.sort_by! { _1["created_at"] }
@@ -114,9 +124,14 @@ loop do
   ids.each.with_index do |id, id_index|
     LOGGER.info "Output NostrEvent #{id_index}/#{ids.size}" if id_index % 1000 == 0
 
-    FileUtils.cp "data/events/#{id}.json", "data/www/#{id}.json"
+    event = NostrEvent.find(id).body
+    unless File.exist?("data/www/#{id}.json")
+      File.open("data/www/#{id}.json", "w") do |f|
+        f.print event
+      end
+    end
 
-    event = JSON.parse(File.open("data/events/#{id}.json").read)
+    event = JSON.parse(event)
     content = content_converter.run(event["content"])
     File.open("data/www/#{id}.html", "w") do |f|
       f.print erb_helper.run(binding)

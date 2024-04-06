@@ -23,7 +23,7 @@ DATABASE_URL=postgres://user:pass@host:5432/db
 EOF
 chmod 600 .env
 
-mkdir -p data/{events,www}
+mkdir -p data/www
 bundle
 IS_DEVELOPMENT=1 TZ=Asia/Tokyo SLEEP_SECONDS=5 bundle exec ruby app.rb
 
