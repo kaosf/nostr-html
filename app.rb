@@ -115,11 +115,11 @@ class ContentConverter
         image = Image.find_by(url_id: url.id)
         if image
           content.sub!(
-            url.body,
+            CGI.escapeHTML(url.body),
             "<a href=\"img/#{image.filename}\"><img src=\"img/#{image.filename_thumb}\" height=\"200\"></a>"
           )
         else
-          content.sub!(url.body, "<a href=\"#{url.body}\" target=\"_blank\">#{url.body}</a>")
+          content.sub!(CGI.escapeHTML(url.body), "<a href=\"#{url.body}\" target=\"_blank\">#{url.body}</a>")
         end
       end
     end
