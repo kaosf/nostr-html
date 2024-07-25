@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-ruby "3.3.0"
+ruby "3.3.4"
 
 gem "actionview", "~> 7.1.3"
 gem "activerecord", "~> 7.1.3"

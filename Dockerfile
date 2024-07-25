@@ -1,6 +1,7 @@
-FROM ruby:3.3.0
+FROM ruby:3.3.4
 COPY ["Gemfile", "Gemfile.lock", "/"]
 RUN bundle config without development && bundle
-COPY ["setup.sql", "app.rb", "/"]
+COPY ["setup.sql", "/"]
+COPY ["app.rb", "/nostr-html.rb"]
 COPY ["templates", "/templates"]
-CMD ["ruby", "/app.rb"]
+CMD ["ruby", "nostr-html.rb"]

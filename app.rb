@@ -254,7 +254,10 @@ loop do
     end
   end
 
-  exit 0 if ENV["RUN_ONCE"] == "1"
+  if ENV["RUN_ONCE"] == "1"
+    ApplicationRecord.remove_connection # To prevent *.sqlite3-shm *.sqlite3-wal files from remaining.
+    exit 0
+  end
 
   LOGGER.info "Finished and sleep #{SLEEP_SECONDS} seconds"
   sleep SLEEP_SECONDS
