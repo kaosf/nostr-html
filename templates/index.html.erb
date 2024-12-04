@@ -10,12 +10,26 @@
 <body>
 <h2>Nostr kind:1 logs</h2>
 <%- all_ym.each do |ym| -%>
-  <p><a href="<%= ym %>.html"><%= ym %></a></p>
-  <%- # special ym process; they are empty. -%>
-  <%- if ym == "2023-03" -%>
-  <p>2023-04</p>
-  <p>2023-05</p>
-  <p>2023-06</p>
+  <%- if ym =~ /\d{4}-01/ -%>
+  <p><%= ym[0..3] %></p>
+  <p>
+  <%- end -%>
+  <%- # special ym process; 2023-01, 04, 05, 06 are empty. -%>
+  <%- if ym == "2023-02" -%>
+  <p>2023</p>
+  <p>
+  2023-01
+  <a href="2023-02.html">2023-02</a>
+  <%- elsif ym == "2023-03" -%>
+  <a href="2023-03.html">2023-03</a>
+  2023-04
+  2023-05
+  2023-06
+  <%- else -%>
+  <a href="<%= ym %>.html"><%= ym %></a>
+  <%- if ym =~ /\d{4}-12/ -%>
+  </p>
+  <%- end -%>
   <%- end -%>
 <%- end -%>
 </body>
