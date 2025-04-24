@@ -46,6 +46,7 @@ end
 
 FileUtils.mkdir_p "data/db"
 FileUtils.mkdir_p "data/img"
+FileUtils.mkdir_p "data/bin"
 FileUtils.mkdir_p "data/www"
 
 class ApplicationRecord < ActiveRecord::Base
@@ -114,10 +115,14 @@ class ContentConverter
       urls.each do |url|
         image = Image.find_by(url_id: url.id)
         if image
-          content.sub!(
-            CGI.escapeHTML(url.body),
-            "<a href=\"img/#{image.filename}\"><img src=\"img/#{image.filename_thumb}\" height=\"200\"></a>"
-          )
+          if image.mime_t == "application/octet-stream"
+            content.sub!(CGI.escapeHTML(url.body), "<a href=\"#{url.body}\" target=\"_blank\">#{url.body}</a>") # same to image is nil
+          else
+            content.sub!(
+              CGI.escapeHTML(url.body),
+              "<a href=\"img/#{image.filename}\"><img src=\"img/#{image.filename_thumb}\" height=\"200\"></a>"
+            )
+          end
         else
           content.sub!(CGI.escapeHTML(url.body), "<a href=\"#{url.body}\" target=\"_blank\">#{url.body}</a>")
         end
@@ -145,7 +150,13 @@ def download_and_get_metadata(url)
   sleep 1
   File.open("data/img/tmp", "wb") { |fo| fo.write URI.parse(url).read }
   sha256 = Digest::SHA256.file("data/img/tmp").to_s
-  mime_type = Magick::Image.ping("data/img/tmp").first.mime_type
+  begin
+    mime_type = Magick::Image.ping("data/img/tmp").first.mime_type
+  rescue Magick::ImageMagickError => _e
+    mime_type = "application/octet-stream"
+    FileUtils.mv("data/img/tmp", "data/bin/#{sha256}.bin")
+    return { mime_type:, sha256: }
+  end
   FileUtils.mv("data/img/tmp", "data/img/#{Image.filename(sha256:, mime_type:)}")
   unless File.exist?("data/img/#{Image.filename_thumb(sha256:, mime_type:)}")
     Magick::Image
