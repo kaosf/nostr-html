@@ -81,7 +81,7 @@ def ext_of_mime_type(mime_type)
   when "image/gif"
     "gif"
   else
-    "image"
+    "bin"
   end
 end
 
@@ -195,13 +195,17 @@ loop do
       image = Image.find_by(url_id: url.id)
 
       if image.nil?
+        LOGGER.debug 'image.nil? #=> true'
         metadata = download_and_get_metadata(url.body)
         mime_type = metadata[:mime_type]
         sha256 = metadata[:sha256]
         Image.create(url_id: url.id, sha256:, mime_t: mime_type)
       else
+        LOGGER.debug 'image.nil? #=> false'
         sha256 = image.sha256
         unless File.exist?("data/img/#{image.filename}")
+          next if File.exist?("data/bin/#{image.filename}")
+
           metadata = download_and_get_metadata(url.body)
           mime_type_real = metadata[:mime_type]
           sha256_real = metadata[:sha256]
