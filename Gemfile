@@ -1,16 +1,16 @@
 source "https://rubygems.org"
 
-ruby "3.3.4"
+ruby "4.0.5"
 
-gem "actionview", "~> 7.1.3"
-gem "activerecord", "~> 7.1.3"
-gem "bech32", "1.4.2"
+gem "actionview", "~> 8.1"
+gem "activerecord", "~> 8.1"
+gem "bech32", "~> 1.5"
 gem "erb", "~> 4.0"
-gem "pg", "1.5.6"
-gem "rmagick", "5.4.4"
-gem "sqlite3", "1.7.3"
+gem "pg", "~> 1.6"
+gem "rmagick", "~> 7.1"
+gem "sqlite3", "~> 2.9"
 
 group :development do
   gem "dotenv", "3.1.0"
-  gem "rubocop", "1.62.1"
+  gem "rubocop", "1.91.0"
 end

@@ -136,8 +136,12 @@ end
 content_converter = ContentConverter.new
 
 class ErbHelper
+  attr_reader :sha256
+
   def initialize(erb_filepath)
-    @template = ERB.new(File.open(erb_filepath).read, trim_mode: "-")
+    erb = File.open(erb_filepath).read
+    @template = ERB.new(erb, trim_mode: "-")
+    @sha256 = Digest::SHA256.hexdigest(erb)
   end
 
   def run(binding)
@@ -168,6 +172,8 @@ def download_and_get_metadata(url)
   { mime_type:, sha256: }
 end
 
+class HtmlSource < ApplicationRecord; end
+
 loop do
   ids = Source::NostrEvent.select(:id).where(kind: 1).pluck(:id)
 
@@ -188,6 +194,7 @@ loop do
       url = Url.find_or_create_by nostr_event_id: ne.id, body: match
 
       image_urls << url if match.include?("nostr.build")
+      image_urls << url if match.include?("blossom.band")
     end
 
     image_urls.each do |url|
@@ -239,14 +246,25 @@ loop do
 
   erb_helper = ErbHelper.new("templates/yyyy-mm.html.erb")
   all_ym.each do |ym|
+    events = []
+    ym_to_ids_dictionary[ym].each do |id|
+      event = JSON.parse(NostrEvent.find(id).body)
+      events << event
+    end
+    events.sort_by! { it["created_at"] }
+
+    html_source_body = [["erb", "yyyy-mm"], ["erb-sha256", erb_helper.sha256], ["ids", events.map { it["id"] }]].to_json
+    html_source_sha256 = Digest::SHA256.hexdigest(html_source_body)
+    if HtmlSource.find_by(target: ym, sha256: html_source_sha256)
+      LOGGER.info "Skip outputting #{ym}.html"
+      next
+    end
+
+    HtmlSource.where(target: ym).delete_all
+    HtmlSource.create(target: ym, body: html_source_body, sha256: html_source_sha256)
+
     LOGGER.info "Output #{ym}.html"
     File.open("data/www/#{ym}.html", "w") do |f|
-      events = []
-      ym_to_ids_dictionary[ym].each do |id|
-        event = JSON.parse(NostrEvent.find(id).body)
-        events << event
-      end
-      events.sort_by! { _1["created_at"] }
       f.print erb_helper.run(binding)
     end
   end
@@ -263,6 +281,14 @@ loop do
     end
 
     event = JSON.parse(event)
+
+    html_source_body = [["erb", "id"], ["erb-sha256", erb_helper.sha256], ["id", id]].to_json
+    html_source_sha256 = Digest::SHA256.hexdigest(html_source_body)
+    next if HtmlSource.find_by(target: id, sha256: html_source_sha256)
+
+    HtmlSource.where(target: id).delete_all
+    HtmlSource.create(target: id, body: html_source_body, sha256: html_source_sha256)
+
     content = content_converter.run(nostr_event_id: id, content: event["content"])
     File.open("data/www/#{id}.html", "w") do |f|
       f.print erb_helper.run(binding)

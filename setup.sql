@@ -27,3 +27,13 @@ CREATE TABLE IF NOT EXISTS images (
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS index_images_on_sha256 ON images(sha256);
+
+CREATE TABLE IF NOT EXISTS html_sources (
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+  target TEXT NOT NULL,
+  body TEXT NOT NULL,
+  sha256 TEXT NOT NULL,
+  UNIQUE(target)
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS index_html_sources_on_target_sha256 ON html_sources(target, sha256);

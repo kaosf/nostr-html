@@ -24,7 +24,7 @@ EOF
 chmod 600 .env
 
 mkdir -p data/{db,img,www}
-bundle
+bundle install
 IS_DEVELOPMENT=1 TZ=Asia/Tokyo SLEEP_SECONDS=5 bundle exec ruby app.rb
 
 cp -r data/www /path/to/www/document-root/
