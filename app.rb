@@ -256,12 +256,14 @@ loop do
     html_source_body = [["erb", "yyyy-mm"], ["erb-sha256", erb_helper.sha256], ["ids", events.map { it["id"] }]].to_json
     html_source_sha256 = Digest::SHA256.hexdigest(html_source_body)
     if HtmlSource.find_by(target: ym, sha256: html_source_sha256)
-      LOGGER.info "Skip outputting #{ym}.html"
-      next
+      if File.exist?("data/www/#{ym}.html")
+        LOGGER.info "Skip outputting #{ym}.html"
+        next
+      end
+    else
+      HtmlSource.where(target: ym).delete_all
+      HtmlSource.create(target: ym, body: html_source_body, sha256: html_source_sha256)
     end
-
-    HtmlSource.where(target: ym).delete_all
-    HtmlSource.create(target: ym, body: html_source_body, sha256: html_source_sha256)
 
     LOGGER.info "Output #{ym}.html"
     File.open("data/www/#{ym}.html", "w") do |f|
@@ -284,10 +286,12 @@ loop do
 
     html_source_body = [["erb", "id"], ["erb-sha256", erb_helper.sha256], ["id", id]].to_json
     html_source_sha256 = Digest::SHA256.hexdigest(html_source_body)
-    next if HtmlSource.find_by(target: id, sha256: html_source_sha256)
-
-    HtmlSource.where(target: id).delete_all
-    HtmlSource.create(target: id, body: html_source_body, sha256: html_source_sha256)
+    if HtmlSource.find_by(target: id, sha256: html_source_sha256)
+      next if File.exist?("data/www/#{id}.html")
+    else
+      HtmlSource.where(target: id).delete_all
+      HtmlSource.create(target: id, body: html_source_body, sha256: html_source_sha256)
+    end
 
     content = content_converter.run(nostr_event_id: id, content: event["content"])
     File.open("data/www/#{id}.html", "w") do |f|

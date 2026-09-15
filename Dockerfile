@@ -1,7 +1,7 @@
 FROM ruby:4.0.5-alpine AS bundle
 RUN apk --update-cache --no-cache add build-base imagemagick-dev
 COPY ["Gemfile", "Gemfile.lock", "/"]
-RUN bundle config set without development && bundle
+RUN bundle config set without development && bundle install
 
 FROM ruby:4.0.5-alpine
 COPY --from=bundle ["/usr/local/bundle", "/usr/local/bundle"]
