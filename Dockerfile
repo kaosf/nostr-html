@@ -5,7 +5,7 @@ RUN bundle config set without development && bundle
 
 FROM ruby:4.0.5-alpine
 COPY --from=bundle ["/usr/local/bundle", "/usr/local/bundle"]
-RUN apk --update-cache --no-cache add libstdc++ imagemagick-libs
+RUN apk --update-cache --no-cache add libstdc++ imagemagick imagemagick-jpeg imagemagick-webp
 COPY ["setup.sql", "/"]
 COPY ["app.rb", "/nostr-html.rb"]
 COPY ["templates", "/templates"]
